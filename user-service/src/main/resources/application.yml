@@ -1,0 +1,28 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: user-service
+
+  datasource:
+    url: jdbc:mysql://localhost:3307/user_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: user_service
+    password: user_pass
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+jwt:
+  secret: medplatform-super-secret-key-2024-very-long-string-must-be-256-bits
+  expiration: 86400000
+
+logging:
+  level:
+    com.medplatform: DEBUG
