@@ -1,0 +1,41 @@
+package com.medplatform.user_service.controller;
+
+import com.medplatform.user_service.model.Doctor;
+import com.medplatform.user_service.service.UserService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/doctors")
+@RequiredArgsConstructor
+public class DoctorController {
+
+    private final UserService userService;
+
+    @GetMapping
+    public ResponseEntity<List<Doctor>> getAll() {
+        return ResponseEntity.ok(userService.getAllDoctors());
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Doctor> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(userService.getDoctorById(id));
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<List<Doctor>> search(
+            @RequestParam(required = false) String specijalnost,
+            @RequestParam(required = false) String grad,
+            @RequestParam(required = false) String ime) {
+        return ResponseEntity.ok(userService.searchDoctors(specijalnost, grad, ime));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        userService.deleteDoctor(id);
+        return ResponseEntity.noContent().build();
+    }
+}
