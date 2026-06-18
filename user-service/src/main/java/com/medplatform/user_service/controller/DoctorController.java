@@ -33,6 +33,11 @@ public class DoctorController {
         return ResponseEntity.ok(userService.searchDoctors(specijalnost, grad, ime));
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<Doctor> update(@PathVariable Long id, @RequestBody Doctor doctor) {
+        return ResponseEntity.ok(userService.updateDoctor(id, doctor));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         userService.deleteDoctor(id);

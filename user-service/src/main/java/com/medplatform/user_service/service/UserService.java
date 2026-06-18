@@ -42,7 +42,6 @@ public class UserService {
 
         user = userRepository.save(user);
 
-        // Ako je doktor, napravi Doctor entitet
         if (user.getUloga() == Role.DOKTOR) {
             Doctor doctor = Doctor.builder().user(user).build();
             doctorRepository.save(doctor);
@@ -64,6 +63,8 @@ public class UserService {
         return buildAuthResponse(token, user);
     }
 
+    // ── Doctors ──────────────────────────────────────────
+
     public List<Doctor> searchDoctors(String specijalnost, String grad, String ime) {
         return doctorRepository.search(specijalnost, grad, ime);
     }
@@ -77,23 +78,21 @@ public class UserService {
         return doctorRepository.findAll();
     }
 
-    public Doctor createDoctor(Long userId, String specijalnost, Long institucijId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Korisnik nije pronađen"));
-        Institution institucija = institucijId != null ?
-                institutionRepository.findById(institucijId).orElse(null) : null;
-
-        Doctor doctor = Doctor.builder()
-                .user(user)
-                .specijalnost(specijalnost)
-                .institucija(institucija)
-                .build();
+    public Doctor updateDoctor(Long id, Doctor updatedDoctor) {
+        Doctor doctor = doctorRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Doktor nije pronađen"));
+        if (updatedDoctor.getSpecijalnost() != null) doctor.setSpecijalnost(updatedDoctor.getSpecijalnost());
+        if (updatedDoctor.getBiografija() != null) doctor.setBiografija(updatedDoctor.getBiografija());
+        if (updatedDoctor.getLicencniBroj() != null) doctor.setLicencniBroj(updatedDoctor.getLicencniBroj());
+        if (updatedDoctor.getInstitucija() != null) doctor.setInstitucija(updatedDoctor.getInstitucija());
         return doctorRepository.save(doctor);
     }
 
     public void deleteDoctor(Long id) {
         doctorRepository.deleteById(id);
     }
+
+    // ── Institutions ──────────────────────────────────────
 
     public List<Institution> getAllInstitutions() {
         return institutionRepository.findAll();
@@ -103,9 +102,23 @@ public class UserService {
         return institutionRepository.save(institution);
     }
 
+    public Institution updateInstitution(Long id, Institution updated) {
+        Institution institution = institutionRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Ustanova nije pronađena"));
+        if (updated.getNaziv() != null) institution.setNaziv(updated.getNaziv());
+        if (updated.getAdresa() != null) institution.setAdresa(updated.getAdresa());
+        if (updated.getGrad() != null) institution.setGrad(updated.getGrad());
+        if (updated.getTelefon() != null) institution.setTelefon(updated.getTelefon());
+        if (updated.getLat() != null) institution.setLat(updated.getLat());
+        if (updated.getLng() != null) institution.setLng(updated.getLng());
+        return institutionRepository.save(institution);
+    }
+
     public void deleteInstitution(Long id) {
         institutionRepository.deleteById(id);
     }
+
+    // ── Helper ────────────────────────────────────────────
 
     private AuthResponse buildAuthResponse(String token, User user) {
         return AuthResponse.builder()

@@ -25,6 +25,11 @@ public class InstitutionController {
         return ResponseEntity.ok(userService.createInstitution(institution));
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<Institution> update(@PathVariable Long id, @RequestBody Institution institution) {
+        return ResponseEntity.ok(userService.updateInstitution(id, institution));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         userService.deleteInstitution(id);
