@@ -1,0 +1,218 @@
+version: '3.8'
+
+services:
+
+  # ─────────────────────────────────────────────
+  # INFRASTRUKTURA
+  # ─────────────────────────────────────────────
+
+  mysql-user:
+    image: mysql:8.0
+    container_name: mysql-user
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: user_db
+      MYSQL_USER: user_service
+      MYSQL_PASSWORD: user_pass
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-user-data:/var/lib/mysql
+    networks:
+      - medplatform-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mysql-appointment:
+    image: mysql:8.0
+    container_name: mysql-appointment
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: appointment_db
+      MYSQL_USER: appointment_service
+      MYSQL_PASSWORD: appointment_pass
+    ports:
+      - "3308:3306"
+    volumes:
+      - mysql-appointment-data:/var/lib/mysql
+    networks:
+      - medplatform-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongodb:
+    image: mongo:7.0
+    container_name: mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root
+      MONGO_INITDB_DATABASE: medical_records_db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+    networks:
+      - medplatform-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - medplatform-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - medplatform-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────
+  # MIKROSERVISI
+  # ─────────────────────────────────────────────
+
+  user-service:
+    build: ./user-service
+    container_name: user-service
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-user:3306/user_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: user_service
+      SPRING_DATASOURCE_PASSWORD: user_pass
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      JWT_SECRET: medplatform-super-secret-key-2024-very-long-string
+      JWT_EXPIRATION: 86400000
+    depends_on:
+      mysql-user:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - medplatform-network
+
+  appointment-service:
+    build: ./appointment-service
+    container_name: appointment-service
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-appointment:3306/appointment_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: appointment_service
+      SPRING_DATASOURCE_PASSWORD: appointment_pass
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+    depends_on:
+      mysql-appointment:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - medplatform-network
+
+  medical-records-service:
+    build: ./medical-records-service
+    container_name: medical-records-service
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_DATA_MONGODB_URI: mongodb://root:root@mongodb:27017/medical_records_db?authSource=admin
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - medplatform-network
+
+  notification-service:
+    build: ./notification-service
+    container_name: notification-service
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - medplatform-network
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      USER_SERVICE_URL: http://user-service:8081
+      APPOINTMENT_SERVICE_URL: http://appointment-service:8082
+      MEDICAL_RECORDS_SERVICE_URL: http://medical-records-service:8083
+      NOTIFICATION_SERVICE_URL: http://notification-service:8084
+    depends_on:
+      - user-service
+      - appointment-service
+      - medical-records-service
+      - notification-service
+    networks:
+      - medplatform-network
+
+  # ─────────────────────────────────────────────
+  # FRONTEND
+  # ─────────────────────────────────────────────
+
+  frontend:
+    build: ./medical-platform-ui
+    container_name: frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - medplatform-network
+
+# ─────────────────────────────────────────────
+# VOLUMES i NETWORK
+# ─────────────────────────────────────────────
+
+volumes:
+  mysql-user-data:
+  mysql-appointment-data:
+  mongodb-data:
+  redis-data:
+  rabbitmq-data:
+
+networks:
+  medplatform-network:
+    driver: bridge
