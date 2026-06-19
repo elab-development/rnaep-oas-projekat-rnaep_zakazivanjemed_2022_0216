@@ -21,16 +21,22 @@ api.interceptors.request.use((config) => {
 
 // Ako server vrati 401, odjavi korisnika
 api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      window.location.href = "/login";
+    (response) => response,
+    (error) => {
+      if (error.response?.status === 401) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        window.location.href = "/login";
+      }
+      return Promise.reject(error);
     }
-    return Promise.reject(error);
-  }
 );
+
+// Helper za trenutno ulogovanog korisnika
+const getCurrentUser = () => {
+  const u = localStorage.getItem("user");
+  return u ? JSON.parse(u) : null;
+};
 
 // ── Auth ──────────────────────────────────────────
 export const authAPI = {
@@ -50,19 +56,47 @@ export const doctorAPI = {
 
 // ── Appointments ──────────────────────────────────
 export const appointmentAPI = {
-  getMyAppointments: () => api.get("/api/appointments/my"),
-  getAvailableSlots: (doctorId, date) =>
-    api.get(`/api/appointments/slots/${doctorId}`, { params: { date } }),
+  getMyAppointments: () => {
+    const user = getCurrentUser();
+    return api.get(`/api/appointments/my/${user?.id}`);
+  },
+  getAvailableSlots: (doctorId, datum) =>
+      api.get(`/api/appointments/slots/${doctorId}`, { params: { datum } }),
   book: (data) => api.post("/api/appointments", data),
   cancel: (id) => api.put(`/api/appointments/${id}/cancel`),
-  getDoctorAppointments: (date) =>
-    api.get("/api/appointments/doctor", { params: { date } }),
+  complete: (id) => api.put(`/api/appointments/${id}/complete`),
+  getDoctorAppointments: (datum) => {
+    const user = getCurrentUser();
+    return api.get(`/api/appointments/doctor/${user?.id}`, { params: { datum } });
+  },
+};
+
+// ── Schedules ──────────────────────────────────────
+export const scheduleAPI = {
+  getMySchedule: () => {
+    const user = getCurrentUser();
+    return api.get(`/api/schedules/my/${user?.id}`);
+  },
+  create: (data) => {
+    const user = getCurrentUser();
+    return api.post("/api/schedules", { ...data, doktorId: user?.id });
+  },
+  delete: (id) => api.delete(`/api/schedules/${id}`),
 };
 
 // ── Medical Records ───────────────────────────────
 export const medicalAPI = {
-  getMyRecords: () => api.get("/api/medical-records/my"),
+  getMyRecords: () => {
+    const user = getCurrentUser();
+    return api.get(`/api/medical-records/my/${user?.id}`);
+  },
+  getDoctorRecords: () => {
+    const user = getCurrentUser();
+    return api.get(`/api/medical-records/doctor/${user?.id}`);
+  },
   getById: (id) => api.get(`/api/medical-records/${id}`),
+  create: (data) => api.post("/api/medical-records", data),
+  update: (id, data) => api.put(`/api/medical-records/${id}`, data),
 };
 
 // ── Institutions ──────────────────────────────────

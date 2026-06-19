@@ -1,0 +1,13 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: medical-records-service
+
+  mongodb:
+    uri: mongodb://root:root@localhost:27017/medical_records_db?authSource=admin
+
+logging:
+  level:
+    com.medplatform: DEBUG
