@@ -88,6 +88,36 @@ public class UserService {
         return doctorRepository.save(doctor);
     }
 
+    public Doctor createDoctorFromAdmin(java.util.Map<String, Object> request) {
+        String email = (String) request.get("email");
+        if (userRepository.existsByEmail(email)) {
+            throw new RuntimeException("Email je već registrovan");
+        }
+
+        User user = User.builder()
+                .ime((String) request.get("ime"))
+                .prezime((String) request.get("prezime"))
+                .email(email)
+                .lozinka(passwordEncoder.encode("promeni123"))  // privremena lozinka
+                .uloga(Role.DOKTOR)
+                .build();
+        user = userRepository.save(user);
+
+        Institution institucija = null;
+        Object institucijaId = request.get("institucija");
+        if (institucijaId != null && !institucijaId.toString().isBlank()) {
+            Long instId = Long.valueOf(institucijaId.toString());
+            institucija = institutionRepository.findById(instId).orElse(null);
+        }
+
+        Doctor doctor = Doctor.builder()
+                .user(user)
+                .specijalnost((String) request.get("specijalnost"))
+                .institucija(institucija)
+                .build();
+        return doctorRepository.save(doctor);
+    }
+
     public void deleteDoctor(Long id) {
         doctorRepository.deleteById(id);
     }
