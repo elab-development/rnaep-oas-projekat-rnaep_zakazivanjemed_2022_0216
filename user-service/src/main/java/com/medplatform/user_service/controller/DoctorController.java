@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/doctors")
@@ -31,6 +32,16 @@ public class DoctorController {
             @RequestParam(required = false) String grad,
             @RequestParam(required = false) String ime) {
         return ResponseEntity.ok(userService.searchDoctors(specijalnost, grad, ime));
+    }
+
+    @PostMapping
+    public ResponseEntity<?> create(@RequestBody Map<String, Object> request) {
+        try {
+            Doctor doctor = userService.createDoctorFromAdmin(request);
+            return ResponseEntity.ok(doctor);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
     }
 
     @PutMapping("/{id}")
