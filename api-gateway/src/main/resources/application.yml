@@ -5,6 +5,12 @@ spring:
   application:
     name: api-gateway
 
+services:
+  user-service: ${USER_SERVICE_URL:http://localhost:8081}
+  appointment-service: ${APPOINTMENT_SERVICE_URL:http://localhost:8082}
+  medical-records-service: ${MEDICAL_RECORDS_SERVICE_URL:http://localhost:8083}
+  notification-service: ${NOTIFICATION_SERVICE_URL:http://localhost:8084}
+
 eureka:
   client:
     enabled: false
