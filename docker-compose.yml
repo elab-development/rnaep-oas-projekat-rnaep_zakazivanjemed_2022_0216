@@ -112,14 +112,10 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql-user:3306/user_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
       SPRING_DATASOURCE_USERNAME: user_service
       SPRING_DATASOURCE_PASSWORD: user_pass
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
       JWT_SECRET: medplatform-super-secret-key-2024-very-long-string
       JWT_EXPIRATION: 86400000
     depends_on:
       mysql-user:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     networks:
       - medplatform-network
@@ -149,7 +145,8 @@ services:
     ports:
       - "8083:8083"
     environment:
-      SPRING_DATA_MONGODB_URI: mongodb://root:root@mongodb:27017/medical_records_db?authSource=admin
+      MONGODB_HOST: mongodb
+      MONGODB_PORT: 27017
     depends_on:
       mongodb:
         condition: service_healthy
@@ -164,6 +161,8 @@ services:
     environment:
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
+      MAIL_USERNAME: visited.places.224@gmail.com
+      MAIL_PASSWORD: trxg bdti xalj nccg
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -215,4 +214,3 @@ volumes:
 
 networks:
   medplatform-network:
-    driver: bridge

@@ -96,7 +96,20 @@ public class AppointmentService {
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Termin nije pronađen"));
         appointment.setStatus(AppointmentStatus.OTKAZAN);
-        return appointmentRepository.save(appointment);
+        appointment = appointmentRepository.save(appointment);
+
+        // Pošalji notifikaciju za otkazivanje
+        String message = String.format("%s|%s|%s|%s|%s|%s",
+                appointment.getPacijentEmail(),
+                appointment.getPacijentIme(),
+                appointment.getDoktorIme(),
+                appointment.getDoktorPrezime(),
+                appointment.getDatum().toString(),
+                appointment.getVreme().toString()
+        );
+        rabbitTemplate.convertAndSend("appointment.exchange", "appointment.cancelled", message);
+
+        return appointment;
     }
 
     public Appointment complete(Long id) {
@@ -124,7 +137,20 @@ public class AppointmentService {
 
         appointment.setDatum(noviDatum);
         appointment.setVreme(novoVremeParsed);
-        return appointmentRepository.save(appointment);
+        appointment = appointmentRepository.save(appointment);
+
+        // Pošalji notifikaciju za izmenu
+        String message = String.format("%s|%s|%s|%s|%s|%s",
+                appointment.getPacijentEmail(),
+                appointment.getPacijentIme(),
+                appointment.getDoktorIme(),
+                appointment.getDoktorPrezime(),
+                appointment.getDatum().toString(),
+                appointment.getVreme().toString()
+        );
+        rabbitTemplate.convertAndSend("appointment.exchange", "appointment.rescheduled", message);
+
+        return appointment;
     }
 
     // ── Slobodni termini ──────────────────────────────────

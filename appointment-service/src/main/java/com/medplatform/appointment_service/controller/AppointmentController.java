@@ -51,6 +51,11 @@ public class AppointmentController {
         return ResponseEntity.ok(appointmentService.getDoctorAppointments(doktorId, datum));
     }
 
+    @GetMapping("/date/{datum}")
+    public ResponseEntity<List<Appointment>> getByDate(@PathVariable LocalDate datum) {
+        return ResponseEntity.ok(appointmentService.getDoctorAppointments(null, datum));
+    }
+
     @GetMapping("/slots/{doktorId}")
     public ResponseEntity<List<String>> getAvailableSlots(
             @PathVariable Long doktorId,
