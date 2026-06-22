@@ -9,7 +9,7 @@ import Register from "./pages/auth/Register";
 import Home from "./pages/public/Home";
 
 // Patient
-import PatientDashboard from "./pages/patient/Dashboard.tsx";
+import PatientDashboard from "./pages/patient/Dashboard";
 import SearchDoctors from "./pages/patient/SearchDoctors";
 import BookAppointment from "./pages/patient/BookAppointment";
 import RescheduleAppointment from "./pages/patient/RescheduleAppointment";

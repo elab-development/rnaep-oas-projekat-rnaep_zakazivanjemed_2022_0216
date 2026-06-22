@@ -32,6 +32,18 @@ public class AppointmentController {
         return ResponseEntity.ok(appointmentService.getMyAppointments(pacijentId));
     }
 
+    @GetMapping("/doctor/{doktorId}/patients")
+    public ResponseEntity<List<Long>> getPatientsByDoktor(@PathVariable Long doktorId) {
+        return ResponseEntity.ok(appointmentService.getPatientIdsByDoktor(doktorId));
+    }
+
+    @GetMapping("/doctor/{doktorId}/patients/{pacijentId}")
+    public ResponseEntity<List<Appointment>> getAppointmentsByDoktorAndPacijent(
+            @PathVariable Long doktorId,
+            @PathVariable Long pacijentId) {
+        return ResponseEntity.ok(appointmentService.getAppointmentsByDoktorAndPacijent(doktorId, pacijentId));
+    }
+
     @GetMapping("/doctor/{doktorId}")
     public ResponseEntity<List<Appointment>> getDoctorAppointments(
             @PathVariable Long doktorId,
