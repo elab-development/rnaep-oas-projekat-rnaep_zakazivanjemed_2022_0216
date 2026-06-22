@@ -65,6 +65,7 @@ export const appointmentAPI = {
   book: (data) => api.post("/api/appointments", data),
   cancel: (id) => api.put(`/api/appointments/${id}/cancel`),
   complete: (id) => api.put(`/api/appointments/${id}/complete`),
+  reschedule: (id, datum, vreme) => api.put(`/api/appointments/${id}/reschedule`, { datum, vreme }),
   getDoctorAppointments: (datum) => {
     const user = getCurrentUser();
     return api.get(`/api/appointments/doctor/${user?.id}`, { params: { datum } });

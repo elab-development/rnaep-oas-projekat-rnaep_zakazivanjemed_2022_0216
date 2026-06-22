@@ -16,6 +16,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -32,16 +33,26 @@ public class UserService {
             throw new RuntimeException("Email je već registrovan");
         }
 
-        User user = User.builder()
+        Role uloga = request.getUloga() != null ? request.getUloga() : Role.PACIJENT;
+
+        User.UserBuilder userBuilder = User.builder()
                 .ime(request.getIme())
                 .prezime(request.getPrezime())
                 .email(request.getEmail())
                 .lozinka(passwordEncoder.encode(request.getLozinka()))
-                .uloga(request.getUloga() != null ? request.getUloga() : Role.PACIJENT)
-                .build();
+                .uloga(uloga);
 
+        // Ako je pacijent i izabrao je matičnog lekara, povežemo
+        if (uloga == Role.PACIJENT && request.getMaticniLekarId() != null) {
+            Doctor maticniLekar = doctorRepository.findById(request.getMaticniLekarId())
+                    .orElse(null);
+            userBuilder.maticniLekar(maticniLekar);
+        }
+
+        User user = userBuilder.build();
         user = userRepository.save(user);
 
+        // Ako je doktor, napravi Doctor entitet (bez institucije - admin dodeljuje kasnije)
         if (user.getUloga() == Role.DOKTOR) {
             Doctor doctor = Doctor.builder().user(user).build();
             doctorRepository.save(doctor);
@@ -61,6 +72,48 @@ public class UserService {
 
         String token = jwtUtil.generateToken(user.getEmail(), user.getUloga().name());
         return buildAuthResponse(token, user);
+    }
+
+    // ── Pacijent profil ────────────────────────────────────
+
+    public User updateMaticniLekar(Long userId, Long doktorId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Korisnik nije pronađen"));
+        if (user.getUloga() != Role.PACIJENT) {
+            throw new RuntimeException("Samo pacijenti mogu imati matičnog lekara");
+        }
+        Doctor doctor = doctorRepository.findById(doktorId)
+                .orElseThrow(() -> new RuntimeException("Doktor nije pronađen"));
+        user.setMaticniLekar(doctor);
+        return userRepository.save(user);
+    }
+
+    public User getUserProfile(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Korisnik nije pronađen"));
+    }
+
+    public User updateProfile(Long userId, String ime, String prezime, String telefon, String adresa) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Korisnik nije pronađen"));
+        if (ime != null && !ime.isBlank()) user.setIme(ime);
+        if (prezime != null && !prezime.isBlank()) user.setPrezime(prezime);
+        if (telefon != null) user.setTelefon(telefon);
+        if (adresa != null) user.setAdresa(adresa);
+        return userRepository.save(user);
+    }
+
+    public void changePassword(Long userId, String currentPassword, String newPassword) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Korisnik nije pronađen"));
+        if (!passwordEncoder.matches(currentPassword, user.getLozinka())) {
+            throw new RuntimeException("Trenutna lozinka nije ispravna");
+        }
+        if (newPassword.length() < 6) {
+            throw new RuntimeException("Nova lozinka mora imati najmanje 6 karaktera");
+        }
+        user.setLozinka(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
     }
 
     // ── Doctors ──────────────────────────────────────────
@@ -88,7 +141,7 @@ public class UserService {
         return doctorRepository.save(doctor);
     }
 
-    public Doctor createDoctorFromAdmin(java.util.Map<String, Object> request) {
+    public Doctor createDoctorFromAdmin(Map<String, Object> request) {
         String email = (String) request.get("email");
         if (userRepository.existsByEmail(email)) {
             throw new RuntimeException("Email je već registrovan");
@@ -98,7 +151,7 @@ public class UserService {
                 .ime((String) request.get("ime"))
                 .prezime((String) request.get("prezime"))
                 .email(email)
-                .lozinka(passwordEncoder.encode("promeni123"))  // privremena lozinka
+                .lozinka(passwordEncoder.encode(request.get("ime") + "123"))
                 .uloga(Role.DOKTOR)
                 .build();
         user = userRepository.save(user);
@@ -118,6 +171,16 @@ public class UserService {
         return doctorRepository.save(doctor);
     }
 
+    // Admin dodeljuje/menja instituciju postojećem doktoru
+    public Doctor assignInstitution(Long doctorId, Long institucijaId) {
+        Doctor doctor = doctorRepository.findById(doctorId)
+                .orElseThrow(() -> new RuntimeException("Doktor nije pronađen"));
+        Institution institucija = institutionRepository.findById(institucijaId)
+                .orElseThrow(() -> new RuntimeException("Ustanova nije pronađena"));
+        doctor.setInstitucija(institucija);
+        return doctorRepository.save(doctor);
+    }
+
     public void deleteDoctor(Long id) {
         doctorRepository.deleteById(id);
     }
@@ -128,9 +191,15 @@ public class UserService {
         return institutionRepository.findAll();
     }
 
+    public Institution getInstitutionById(Long id) {
+        return institutionRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Ustanova nije pronađena"));
+    }
+
     public Institution createInstitution(Institution institution) {
         return institutionRepository.save(institution);
     }
+
 
     public Institution updateInstitution(Long id, Institution updated) {
         Institution institution = institutionRepository.findById(id)

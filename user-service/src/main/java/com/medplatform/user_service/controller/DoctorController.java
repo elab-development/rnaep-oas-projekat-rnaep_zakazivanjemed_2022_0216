@@ -49,6 +49,17 @@ public class DoctorController {
         return ResponseEntity.ok(userService.updateDoctor(id, doctor));
     }
 
+    // Admin dodeljuje ili menja ustanovu doktoru
+    @PutMapping("/{id}/institucija")
+    public ResponseEntity<?> assignInstitution(@PathVariable Long id, @RequestBody Map<String, Long> body) {
+        try {
+            Doctor doctor = userService.assignInstitution(id, body.get("institucijaId"));
+            return ResponseEntity.ok(doctor);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         userService.deleteDoctor(id);

@@ -1,5 +1,6 @@
 package com.medplatform.user_service.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -33,6 +34,7 @@ public class Institution {
 
     private Double lng;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "institucija", fetch = FetchType.LAZY)
     private List<Doctor> lekari;
 }

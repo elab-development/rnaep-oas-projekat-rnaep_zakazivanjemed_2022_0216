@@ -4,12 +4,12 @@ import com.medplatform.appointment_service.dto.AppointmentRequest;
 import com.medplatform.appointment_service.model.Appointment;
 import com.medplatform.appointment_service.service.AppointmentService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/appointments")
@@ -19,8 +19,12 @@ public class AppointmentController {
     private final AppointmentService appointmentService;
 
     @PostMapping
-    public ResponseEntity<Appointment> book(@RequestBody AppointmentRequest request) {
-        return ResponseEntity.ok(appointmentService.book(request));
+    public ResponseEntity<?> book(@RequestBody AppointmentRequest request) {
+        try {
+            return ResponseEntity.ok(appointmentService.book(request));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
     }
 
     @GetMapping("/my/{pacijentId}")
@@ -31,24 +35,43 @@ public class AppointmentController {
     @GetMapping("/doctor/{doktorId}")
     public ResponseEntity<List<Appointment>> getDoctorAppointments(
             @PathVariable Long doktorId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate datum) {
+            @RequestParam(required = false) LocalDate datum) {
         return ResponseEntity.ok(appointmentService.getDoctorAppointments(doktorId, datum));
     }
 
     @GetMapping("/slots/{doktorId}")
     public ResponseEntity<List<String>> getAvailableSlots(
             @PathVariable Long doktorId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate datum) {
+            @RequestParam LocalDate datum) {
         return ResponseEntity.ok(appointmentService.getAvailableSlots(doktorId, datum));
     }
 
     @PutMapping("/{id}/cancel")
-    public ResponseEntity<Appointment> cancel(@PathVariable Long id) {
-        return ResponseEntity.ok(appointmentService.cancel(id));
+    public ResponseEntity<?> cancel(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(appointmentService.cancel(id));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
     }
 
     @PutMapping("/{id}/complete")
-    public ResponseEntity<Appointment> complete(@PathVariable Long id) {
-        return ResponseEntity.ok(appointmentService.complete(id));
+    public ResponseEntity<?> complete(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(appointmentService.complete(id));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/{id}/reschedule")
+    public ResponseEntity<?> reschedule(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        try {
+            LocalDate noviDatum = LocalDate.parse(body.get("datum"));
+            String novoVreme = body.get("vreme");
+            return ResponseEntity.ok(appointmentService.reschedule(id, noviDatum, novoVreme));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
     }
 }

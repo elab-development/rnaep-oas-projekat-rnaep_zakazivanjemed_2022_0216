@@ -30,6 +30,12 @@ public class GatewayRoutesConfig {
                                 .route(path("/api/institutions/**"), http())
                                 .before(uri("http://localhost:8081"))
                                 .build()
+                )
+                .and(
+                        GatewayRouterFunctions.route("user-service-users")
+                                .route(path("/api/users/**"), http())
+                                .before(uri("http://localhost:8081"))
+                                .build()
                 );
     }
 

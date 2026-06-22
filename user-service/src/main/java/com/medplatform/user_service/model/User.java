@@ -1,5 +1,6 @@
 package com.medplatform.user_service.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -32,6 +33,7 @@ public class User {
     @Column(unique = true, nullable = false)
     private String email;
 
+    @JsonIgnore
     @NotBlank
     @Column(nullable = false)
     private String lozinka;
@@ -41,6 +43,14 @@ public class User {
     private Role uloga;
 
     private boolean emailVerifikovan = false;
+
+    private String telefon;
+
+    private String adresa;
+
+    @ManyToOne
+    @JoinColumn(name = "maticni_lekar_id")
+    private Doctor maticniLekar;
 
     private LocalDateTime createdAt;
 

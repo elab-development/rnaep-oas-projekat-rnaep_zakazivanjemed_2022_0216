@@ -24,4 +24,7 @@ public class RegisterRequest {
     private String lozinka;
 
     private Role uloga = Role.PACIJENT;
+
+    // Opciono - samo ako je uloga PACIJENT
+    private Long maticniLekarId;
 }

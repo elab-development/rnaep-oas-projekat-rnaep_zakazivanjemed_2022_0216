@@ -25,7 +25,6 @@ public class AppointmentService {
     private final RabbitTemplate rabbitTemplate;
 
     public Appointment book(AppointmentRequest request) {
-        // Provjeri da li je termin slobodan
         if (appointmentRepository.existsByDoktorIdAndDatumAndVreme(
                 request.getDoktorId(), request.getDatum(), request.getVreme())) {
             throw new RuntimeException("Termin je već zauzet");
@@ -48,7 +47,6 @@ public class AppointmentService {
 
         appointment = appointmentRepository.save(appointment);
 
-        // Pošalji notifikaciju preko RabbitMQ
         String message = String.format(
                 "%s|%s|%s|%s|%s|%s",
                 appointment.getPacijentEmail(),
@@ -72,6 +70,21 @@ public class AppointmentService {
         return appointmentRepository.findByPacijentId(pacijentId);
     }
 
+    public List<Long> getPatientIdsByDoktor(Long doktorId) {
+        return appointmentRepository.findByDoktorId(doktorId)
+                .stream()
+                .map(Appointment::getPacijentId)
+                .distinct()
+                .toList();
+    }
+
+    public List<Appointment> getAppointmentsByDoktorAndPacijent(Long doktorId, Long pacijentId) {
+        return appointmentRepository.findByDoktorId(doktorId)
+                .stream()
+                .filter(a -> a.getPacijentId().equals(pacijentId))
+                .toList();
+    }
+
     public List<Appointment> getDoctorAppointments(Long doktorId, LocalDate datum) {
         if (datum != null) {
             return appointmentRepository.findByDoktorIdAndDatum(doktorId, datum);
@@ -90,6 +103,27 @@ public class AppointmentService {
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Termin nije pronađen"));
         appointment.setStatus(AppointmentStatus.ZAVRSEN);
+        return appointmentRepository.save(appointment);
+    }
+
+    public Appointment reschedule(Long id, LocalDate noviDatum, String novoVreme) {
+        Appointment appointment = appointmentRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Termin nije pronađen"));
+
+        if (appointment.getStatus() != AppointmentStatus.ZAKAZAN) {
+            throw new RuntimeException("Može se izmeniti samo termin sa statusom ZAKAZAN");
+        }
+
+        LocalTime novoVremeParsed = LocalTime.parse(novoVreme);
+
+        boolean zauzet = appointmentRepository.existsByDoktorIdAndDatumAndVreme(
+                appointment.getDoktorId(), noviDatum, novoVremeParsed);
+        if (zauzet) {
+            throw new RuntimeException("Izabrani termin više nije dostupan");
+        }
+
+        appointment.setDatum(noviDatum);
+        appointment.setVreme(novoVremeParsed);
         return appointmentRepository.save(appointment);
     }
 
