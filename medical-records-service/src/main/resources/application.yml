@@ -5,9 +5,8 @@ spring:
   application:
     name: medical-records-service
 
-  data:
-    mongodb:
-      uri: mongodb://root:root@mongodb:27017/medical_records_db?authSource=admin
+  mongodb:
+    uri: ${SPRING_DATA_MONGODB_URI:mongodb://root:root@mongodb:27017/medical_records_db?authSource=admin}
 
 logging:
   level:
