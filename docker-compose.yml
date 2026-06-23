@@ -53,8 +53,6 @@ services:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: root
       MONGO_INITDB_DATABASE: medical_records_db
-    ports:
-      - "27017:27017"
     volumes:
       - mongodb-data:/data/db
     networks:
@@ -145,8 +143,7 @@ services:
     ports:
       - "8083:8083"
     environment:
-      MONGODB_HOST: mongodb
-      MONGODB_PORT: 27017
+      SPRING_DATA_MONGODB_URI: mongodb://root:root@mongodb:27017/medical_records_db?authSource=admin
     depends_on:
       mongodb:
         condition: service_healthy
@@ -161,8 +158,8 @@ services:
     environment:
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
-      MAIL_USERNAME: visited.places.224@gmail.com
-      MAIL_PASSWORD: trxg bdti xalj nccg
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
     depends_on:
       rabbitmq:
         condition: service_healthy
