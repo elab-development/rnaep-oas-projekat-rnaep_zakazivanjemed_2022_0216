@@ -40,7 +40,7 @@ export default function Navbar() {
     return (
         <nav className="bg-primary-600 text-white px-6 py-4 flex items-center justify-between shadow-md">
             <Link to="/" className="text-xl font-bold tracking-tight">
-                🏥 MedPlatforma
+                🏥 MedConnect
             </Link>
 
             <div className="flex items-center gap-6 text-sm font-medium">
