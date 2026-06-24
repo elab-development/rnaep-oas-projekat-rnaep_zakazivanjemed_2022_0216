@@ -1,70 +1,52 @@
 import { useEffect, useRef } from "react";
 import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
-// Importujemo CSS direktno u index.css umesto ovde
-// Dodajte ovo u src/index.css:
-// @import 'leaflet/dist/leaflet.css';
-
-interface Institution {
-  id: number;
-  naziv: string;
-  adresa: string;
-  grad: string;
-  lat?: number;
-  lng?: number;
-}
+// Fix za default marker ikone u Leaflet + Webpack/Vite
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
 
 interface Props {
-  institutions: Institution[];
+  lat: number;
+  lng: number;
+  naziv: string;
+  adresa?: string;
 }
 
-const DEFAULT_CENTER: [number, number] = [44.8125, 20.4612];
-
-export default function InstitutionMap({ institutions }: Props) {
+export default function InstitutionMap({ lat, lng, naziv, adresa }: Props) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
-
-  const validInstitutions = institutions.filter((i) => i.lat && i.lng);
-  const center: [number, number] =
-    validInstitutions.length > 0
-      ? [validInstitutions[0].lat!, validInstitutions[0].lng!]
-      : DEFAULT_CENTER;
 
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
 
-    // Fix za Leaflet marker ikonice
-    const icon = L.icon({
-      iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
-      iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
-      shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      popupAnchor: [1, -34],
-    });
-
-    const map = L.map(mapRef.current).setView(center, 12);
-    mapInstanceRef.current = map;
+    const map = L.map(mapRef.current).setView([lat, lng], 15);
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(map);
 
-    validInstitutions.forEach((inst) => {
-      L.marker([inst.lat!, inst.lng!], { icon })
+    L.marker([lat, lng])
         .addTo(map)
-        .bindPopup(`<b>${inst.naziv}</b><br>${inst.adresa}, ${inst.grad}`);
-    });
+        .bindPopup(`<b>${naziv}</b>${adresa ? `<br>${adresa}` : ""}`)
+        .openPopup();
+
+    mapInstanceRef.current = map;
 
     return () => {
       map.remove();
       mapInstanceRef.current = null;
     };
-  }, []);
+  }, [lat, lng, naziv, adresa]);
 
   return (
-    <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm">
-      <div ref={mapRef} style={{ height: "400px", width: "100%" }} />
-    </div>
+      <div
+          ref={mapRef}
+          style={{ height: "300px", width: "100%", borderRadius: "12px", zIndex: 0 }}
+      />
   );
 }

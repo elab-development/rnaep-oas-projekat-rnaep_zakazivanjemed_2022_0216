@@ -21,6 +21,7 @@ interface AuthUser {
   ime: string;
   prezime: string;
   email: string;
+  telefon?: string;
 }
 
 export default function BookAppointment() {
@@ -67,6 +68,7 @@ export default function BookAppointment() {
         pacijentIme: user?.ime,
         pacijentPrezime: user?.prezime,
         pacijentEmail: user?.email,
+        pacijentTelefon: user?.telefon || "",
       });
 
       await sendAppointmentConfirmation({

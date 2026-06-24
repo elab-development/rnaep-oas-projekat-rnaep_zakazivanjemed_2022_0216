@@ -5,7 +5,7 @@ import { authAPI, doctorAPI } from "../../services/api";
 export default function Register() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
-    ime: "", prezime: "", email: "", lozinka: "", uloga: "PACIJENT", maticniLekarId: "",
+    ime: "", prezime: "", email: "", lozinka: "", uloga: "PACIJENT", maticniLekarId: "", telefon: "",
   });
   const [doctors, setDoctors] = useState([]);
   const [error, setError] = useState("");
@@ -78,6 +78,19 @@ export default function Register() {
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Broj telefona <span className="text-gray-400 font-normal">(opciono — za SMS notifikacije)</span>
+              </label>
+              <input
+                  type="tel"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  value={form.telefon}
+                  onChange={(e) => setForm({ ...form, telefon: e.target.value })}
+                  placeholder="npr. 0611234567"
+              />
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Lozinka</label>
               <input

@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
+
+const InstitutionMap = lazy(() => import("../../components/InstitutionMap"));
 
 export default function InstitutionProfile() {
     const { institutionId } = useParams();
@@ -103,14 +105,14 @@ export default function InstitutionProfile() {
             {institution.lat && institution.lng && (
                 <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-4">
                     <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Lokacija</h2>
-                    <a
-                        href={`https://www.openstreetmap.org/?mlat=${institution.lat}&mlon=${institution.lng}&zoom=16`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-primary-600 hover:underline flex items-center gap-1"
-                    >
-                        📍 Pogledajte na mapi →
-                    </a>
+                    <Suspense fallback={<div className="h-64 bg-gray-100 rounded-xl animate-pulse" />}>
+                        <InstitutionMap
+                            lat={institution.lat}
+                            lng={institution.lng}
+                            naziv={institution.naziv}
+                            adresa={institution.adresa}
+                        />
+                    </Suspense>
                 </div>
             )}
 
