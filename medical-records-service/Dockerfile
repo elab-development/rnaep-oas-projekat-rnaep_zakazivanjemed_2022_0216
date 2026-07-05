@@ -1,7 +1,14 @@
+# Faza 1: Build
+FROM maven:3.9.6-eclipse-temurin-21 AS build
+WORKDIR /app
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
+COPY src ./src
+RUN mvn clean package -DskipTests
+
+# Faza 2: Run
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
-COPY target/medical-records-service-0.0.1-SNAPSHOT.jar app.jar
+COPY --from=build /app/target/*.jar app.jar
 EXPOSE 8083
-ENTRYPOINT ["java", \
-  "-Dspring.data.mongodb.uri=mongodb://root:root@mongodb:27017/medical_records_db?authSource=admin", \
-  "-jar", "app.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]

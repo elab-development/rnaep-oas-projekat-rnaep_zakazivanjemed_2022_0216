@@ -2,10 +2,6 @@ version: '3.8'
 
 services:
 
-  # ─────────────────────────────────────────────
-  # INFRASTRUKTURA
-  # ─────────────────────────────────────────────
-
   mysql-user:
     image: mysql:8.0
     container_name: mysql-user
@@ -78,28 +74,33 @@ services:
       timeout: 5s
       retries: 5
 
-  rabbitmq:
-    image: rabbitmq:3.13-management
-    container_name: rabbitmq
-    environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
+  kafka:
+    image: apache/kafka:3.8.0
+    container_name: kafka
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "29092:29092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,PLAINTEXT_HOST://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
     volumes:
-      - rabbitmq-data:/var/lib/rabbitmq
+      - kafka-data:/var/lib/kafka/data
     networks:
       - medplatform-network
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
       interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # ─────────────────────────────────────────────
-  # MIKROSERVISI
-  # ─────────────────────────────────────────────
+      timeout: 10s
+      retries: 10
 
   user-service:
     build: ./user-service
@@ -127,12 +128,11 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql-appointment:3306/appointment_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
       SPRING_DATASOURCE_USERNAME: appointment_service
       SPRING_DATASOURCE_PASSWORD: appointment_pass
-      SPRING_RABBITMQ_HOST: rabbitmq
-      SPRING_RABBITMQ_PORT: 5672
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
       mysql-appointment:
         condition: service_healthy
-      rabbitmq:
+      kafka:
         condition: service_healthy
     networks:
       - medplatform-network
@@ -143,9 +143,17 @@ services:
     ports:
       - "8083:8083"
     environment:
-      SPRING_DATA_MONGODB_URI: mongodb://root:root@mongodb:27017/medical_records_db?authSource=admin
+      SPRING_DATA_MONGODB_HOST: mongodb
+      SPRING_DATA_MONGODB_PORT: "27017"
+      SPRING_DATA_MONGODB_DATABASE: medical_records_db
+      SPRING_DATA_MONGODB_USERNAME: root
+      SPRING_DATA_MONGODB_PASSWORD: root
+      SPRING_DATA_MONGODB_AUTHENTICATION_DATABASE: admin
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
       mongodb:
+        condition: service_healthy
+      kafka:
         condition: service_healthy
     networks:
       - medplatform-network
@@ -156,12 +164,14 @@ services:
     ports:
       - "8084:8084"
     environment:
-      SPRING_RABBITMQ_HOST: rabbitmq
-      SPRING_RABBITMQ_PORT: 5672
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       MAIL_USERNAME: ${MAIL_USERNAME}
       MAIL_PASSWORD: ${MAIL_PASSWORD}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER}
     depends_on:
-      rabbitmq:
+      kafka:
         condition: service_healthy
     networks:
       - medplatform-network
@@ -184,10 +194,6 @@ services:
     networks:
       - medplatform-network
 
-  # ─────────────────────────────────────────────
-  # FRONTEND
-  # ─────────────────────────────────────────────
-
   frontend:
     build: ./medical-platform-ui
     container_name: frontend
@@ -198,16 +204,12 @@ services:
     networks:
       - medplatform-network
 
-# ─────────────────────────────────────────────
-# VOLUMES i NETWORK
-# ─────────────────────────────────────────────
-
 volumes:
   mysql-user-data:
   mysql-appointment-data:
   mongodb-data:
   redis-data:
-  rabbitmq-data:
+  kafka-data:
 
 networks:
   medplatform-network:

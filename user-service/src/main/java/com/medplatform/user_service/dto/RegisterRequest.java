@@ -27,4 +27,6 @@ public class RegisterRequest {
 
     // Opciono - samo ako je uloga PACIJENT
     private Long maticniLekarId;
+
+    private String telefon;
 }

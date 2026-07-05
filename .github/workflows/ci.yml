@@ -1,0 +1,66 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  # ── Testovi za Java servise ──
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [user-service, appointment-service, medical-records-service, notification-service, api-gateway]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+      - name: Test ${{ matrix.service }}
+        working-directory: ${{ matrix.service }}
+        run: mvn -B verify
+
+  # ── Build Docker image-a za sve servise ──
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [user-service, appointment-service, medical-records-service, notification-service, api-gateway, medical-platform-ui]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image ${{ matrix.service }}
+        run: docker build -t ${{ matrix.service }}:${{ github.sha }} ./${{ matrix.service }}
+
+  # ── Objavljivanje na GitHub Container Registry (samo na push, ne na PR) ──
+  publish:
+    needs: build
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        service: [user-service, appointment-service, medical-records-service, notification-service, api-gateway, medical-platform-ui]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Login na ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build i push ${{ matrix.service }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ./${{ matrix.service }}
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.service }}:latest
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.service }}:${{ github.sha }}

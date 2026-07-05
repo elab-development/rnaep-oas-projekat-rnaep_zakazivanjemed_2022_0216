@@ -1,11 +1,14 @@
 package com.medplatform.notification_service.listener;
 
-import com.medplatform.notification_service.config.RabbitMQConfig;
+import com.medplatform.notification_service.config.KafkaTopics;
+import com.medplatform.notification_service.event.AppointmentEvent;
 import com.medplatform.notification_service.service.EmailService;
+import com.medplatform.notification_service.service.SmsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
+import com.medplatform.notification_service.event.MedicalRecordCreatedEvent;
 
 @Component
 @RequiredArgsConstructor
@@ -13,65 +16,81 @@ import org.springframework.stereotype.Component;
 public class NotificationListener {
 
     private final EmailService emailService;
+    private final SmsService smsService;
 
-    // Format poruke: email|imePacijenta|imeDoktora|prezimeDoktora|datum|vreme
-    @RabbitListener(queues = RabbitMQConfig.APPOINTMENT_QUEUE)
-    public void handleBooking(String message) {
-        log.info("Primljena poruka za zakazivanje: {}", message);
-        try {
-            String[] parts = message.split("\\|");
-            if (parts.length >= 6) {
-                emailService.sendBookingConfirmation(
-                        parts[0], parts[1], parts[2], parts[3], parts[4], parts[5]
-                );
-            }
-        } catch (Exception e) {
-            log.error("Greška pri obradi poruke za zakazivanje: {}", e.getMessage());
+    private static final String FACTORY = "appointmentKafkaListenerContainerFactory";
+
+    @KafkaListener(topics = KafkaTopics.APPOINTMENT_CREATED, containerFactory = FACTORY)
+    public void handleBooking(AppointmentEvent e) {
+        log.info("Primljen appointment-created za {}", e.getPacijentEmail());
+        emailService.sendBookingConfirmation(
+                e.getPacijentEmail(), e.getPacijentIme(),
+                e.getDoktorIme(), e.getDoktorPrezime(), e.getDatum(), e.getVreme());
+        if (hasPhone(e)) {
+            smsService.sendBookingConfirmation(
+                    e.getPacijentTelefon(), e.getPacijentIme(),
+                    e.getDoktorIme(), e.getDoktorPrezime(), e.getDatum(), e.getVreme());
         }
     }
 
-    @RabbitListener(queues = RabbitMQConfig.CANCEL_QUEUE)
-    public void handleCancellation(String message) {
-        log.info("Primljena poruka za otkazivanje: {}", message);
-        try {
-            String[] parts = message.split("\\|");
-            if (parts.length >= 6) {
-                emailService.sendCancellationNotification(
-                        parts[0], parts[1], parts[2], parts[3], parts[4], parts[5]
-                );
-            }
-        } catch (Exception e) {
-            log.error("Greška pri obradi poruke za otkazivanje: {}", e.getMessage());
+    @KafkaListener(topics = KafkaTopics.APPOINTMENT_CANCELLED, containerFactory = FACTORY)
+    public void handleCancellation(AppointmentEvent e) {
+        log.info("Primljen appointment-cancelled za {}", e.getPacijentEmail());
+        emailService.sendCancellationNotification(
+                e.getPacijentEmail(), e.getPacijentIme(),
+                e.getDoktorIme(), e.getDoktorPrezime(), e.getDatum(), e.getVreme());
+        if (hasPhone(e)) {
+            smsService.sendCancellationNotification(
+                    e.getPacijentTelefon(), e.getPacijentIme(),
+                    e.getDoktorIme(), e.getDoktorPrezime(), e.getDatum(), e.getVreme());
         }
     }
 
-    @RabbitListener(queues = RabbitMQConfig.RESCHEDULE_QUEUE)
-    public void handleReschedule(String message) {
-        log.info("Primljena poruka za izmenu: {}", message);
-        try {
-            String[] parts = message.split("\\|");
-            if (parts.length >= 6) {
-                emailService.sendRescheduleConfirmation(
-                        parts[0], parts[1], parts[2], parts[3], parts[4], parts[5]
-                );
-            }
-        } catch (Exception e) {
-            log.error("Greška pri obradi poruke za izmenu: {}", e.getMessage());
+    @KafkaListener(topics = KafkaTopics.APPOINTMENT_RESCHEDULED, containerFactory = FACTORY)
+    public void handleReschedule(AppointmentEvent e) {
+        log.info("Primljen appointment-rescheduled za {}", e.getPacijentEmail());
+        emailService.sendRescheduleConfirmation(
+                e.getPacijentEmail(), e.getPacijentIme(),
+                e.getDoktorIme(), e.getDoktorPrezime(), e.getDatum(), e.getVreme());
+        if (hasPhone(e)) {
+            smsService.sendRescheduleConfirmation(
+                    e.getPacijentTelefon(), e.getPacijentIme(),
+                    e.getDoktorIme(), e.getDoktorPrezime(), e.getDatum(), e.getVreme());
         }
     }
 
-    @RabbitListener(queues = RabbitMQConfig.REMINDER_QUEUE)
-    public void handleReminder(String message) {
-        log.info("Primljena poruka za podsetnik: {}", message);
-        try {
-            String[] parts = message.split("\\|");
-            if (parts.length >= 6) {
-                emailService.sendReminderEmail(
-                        parts[0], parts[1], parts[2], parts[3], parts[4], parts[5]
-                );
-            }
-        } catch (Exception e) {
-            log.error("Greška pri obradi poruke za podsetnik: {}", e.getMessage());
+    @KafkaListener(topics = KafkaTopics.APPOINTMENT_REMINDER, containerFactory = FACTORY)
+    public void handleReminder(AppointmentEvent e) {
+        log.info("Primljen appointment-reminder za {}", e.getPacijentEmail());
+        emailService.sendReminderEmail(
+                e.getPacijentEmail(), e.getPacijentIme(),
+                e.getDoktorIme(), e.getDoktorPrezime(), e.getDatum(), e.getVreme());
+        if (hasPhone(e)) {
+            smsService.sendReminderSms(
+                    e.getPacijentTelefon(), e.getPacijentIme(),
+                    e.getDoktorIme(), e.getDoktorPrezime(), e.getDatum(), e.getVreme());
         }
+    }
+    @KafkaListener(topics = KafkaTopics.MEDICAL_RECORD_CREATED,
+            containerFactory = "medicalRecordKafkaListenerContainerFactory")
+    public void handleMedicalRecordCreated(MedicalRecordCreatedEvent e) {
+        log.info("Primljen medical-record-created za {}", e.getPacijentEmail());
+        String datum = e.getDatumPregleda();
+        emailService.sendEmail(
+                e.getPacijentEmail(),
+                "Vaš nalaz je spreman - MedConnect",
+                String.format("""
+                        Poštovani/a %s,
+
+                        Vaš medicinski nalaz sa pregleda kod Dr. %s %s (%s) je kreiran
+                        i biće dostupan u Vašem MedConnect nalogu.
+
+                        Srdačan pozdrav,
+                        MedConnect
+                        """, e.getPacijentIme(), e.getDoktorIme(), e.getDoktorPrezime(), datum));
+    }
+
+    private boolean hasPhone(AppointmentEvent e) {
+        return e.getPacijentTelefon() != null && !e.getPacijentTelefon().isBlank();
     }
 }

@@ -8,4 +8,5 @@ import java.util.List;
 public interface MedicalRecordRepository extends MongoRepository<MedicalRecord, String> {
     List<MedicalRecord> findByPacijentId(Long pacijentId);
     List<MedicalRecord> findByDoktorId(Long doktorId);
+    List<MedicalRecord> findByAppointmentId(Long appointmentId);
 }

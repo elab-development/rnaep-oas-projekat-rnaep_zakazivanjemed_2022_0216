@@ -34,7 +34,7 @@ public class EmailService {
     public void sendBookingConfirmation(String to, String imePacijenta,
                                         String imeDoktora, String prezimeDoktora,
                                         String datum, String vreme) {
-        String subject = "Potvrda zakazanog termina - MedPlatforma";
+        String subject = "Potvrda zakazanog termina - MedConnect";
         String body = String.format("""
                 Poštovani/a %s,
                 
@@ -48,7 +48,7 @@ public class EmailService {
                 Molimo Vas da budete prisutni 10 minuta pre zakazanog vremena.
                 
                 Srdačan pozdrav,
-                MedPlatforma
+                MedConnect
                 """, imePacijenta, imeDoktora, prezimeDoktora, datum, vreme);
         sendEmail(to, subject, body);
     }
@@ -56,7 +56,7 @@ public class EmailService {
     public void sendCancellationNotification(String to, String imePacijenta,
                                              String imeDoktora, String prezimeDoktora,
                                              String datum, String vreme) {
-        String subject = "Otkazivanje termina - MedPlatforma";
+        String subject = "Otkazivanje termina - MedConnect";
         String body = String.format("""
                 Poštovani/a %s,
                 
@@ -67,10 +67,10 @@ public class EmailService {
                   Datum: %s
                   Vreme: %s
                 
-                Možete zakazati novi termin putem MedPlatforme.
+                Možete zakazati novi termin putem MedConnect.
                 
                 Srdačan pozdrav,
-                MedPlatforma
+                MedConnect
                 """, imePacijenta, imeDoktora, prezimeDoktora, datum, vreme);
         sendEmail(to, subject, body);
     }
@@ -78,7 +78,7 @@ public class EmailService {
     public void sendRescheduleConfirmation(String to, String imePacijenta,
                                            String imeDoktora, String prezimeDoktora,
                                            String datum, String vreme) {
-        String subject = "Potvrda izmene termina - MedPlatforma";
+        String subject = "Potvrda izmene termina - MedConnect";
         String body = String.format("""
                 Poštovani/a %s,
                 
@@ -92,7 +92,7 @@ public class EmailService {
                 Molimo Vas da budete prisutni 10 minuta pre zakazanog vremena.
                 
                 Srdačan pozdrav,
-                MedPlatforma
+                MedConnect
                 """, imePacijenta, imeDoktora, prezimeDoktora, datum, vreme);
         sendEmail(to, subject, body);
     }
@@ -100,7 +100,7 @@ public class EmailService {
     public void sendReminderEmail(String to, String imePacijenta,
                                   String imeDoktora, String prezimeDoktora,
                                   String datum, String vreme) {
-        String subject = "Podsetnik za termin sutra - MedPlatforma";
+        String subject = "Podsetnik za termin sutra - MedConnect";
         String body = String.format("""
                 Poštovani/a %s,
                 
@@ -114,7 +114,7 @@ public class EmailService {
                 Molimo Vas da budete prisutni 10 minuta pre zakazanog vremena.
                 
                 Srdačan pozdrav,
-                MedPlatforma
+                MedConnect
                 """, imePacijenta, imeDoktora, prezimeDoktora, datum, vreme);
         sendEmail(to, subject, body);
     }

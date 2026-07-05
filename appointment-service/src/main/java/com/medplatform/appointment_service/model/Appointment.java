@@ -39,7 +39,6 @@ public class Appointment {
     private AppointmentStatus status;
 
     private String napomena;
-
     private LocalDateTime createdAt;
 
     // Denormalizovani podaci za brži prikaz
@@ -49,6 +48,7 @@ public class Appointment {
     private String pacijentIme;
     private String pacijentPrezime;
     private String pacijentEmail;
+    private String pacijentTelefon;
 
     @PrePersist
     protected void onCreate() {

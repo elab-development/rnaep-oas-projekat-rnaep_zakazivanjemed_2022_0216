@@ -40,7 +40,8 @@ public class UserService {
                 .prezime(request.getPrezime())
                 .email(request.getEmail())
                 .lozinka(passwordEncoder.encode(request.getLozinka()))
-                .uloga(uloga);
+                .uloga(uloga)
+                .telefon(request.getTelefon());
 
         // Ako je pacijent i izabrao je matičnog lekara, povežemo
         if (uloga == Role.PACIJENT && request.getMaticniLekarId() != null) {
@@ -228,6 +229,7 @@ public class UserService {
                         .prezime(user.getPrezime())
                         .email(user.getEmail())
                         .uloga(user.getUloga())
+                        .telefon(user.getTelefon())
                         .build())
                 .build();
     }

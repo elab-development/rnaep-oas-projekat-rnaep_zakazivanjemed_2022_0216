@@ -1,14 +1,15 @@
 package com.medplatform.appointment_service.service;
 
-import com.medplatform.appointment_service.config.RabbitMQConfig;
+import com.medplatform.appointment_service.config.KafkaTopics;
 import com.medplatform.appointment_service.dto.AppointmentRequest;
+import com.medplatform.appointment_service.event.AppointmentEvent;
+import com.medplatform.appointment_service.messaging.AppointmentEventPublisher;
 import com.medplatform.appointment_service.model.Appointment;
 import com.medplatform.appointment_service.model.AppointmentStatus;
 import com.medplatform.appointment_service.model.Schedule;
 import com.medplatform.appointment_service.repository.AppointmentRepository;
 import com.medplatform.appointment_service.repository.ScheduleRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -22,11 +23,11 @@ public class AppointmentService {
 
     private final AppointmentRepository appointmentRepository;
     private final ScheduleRepository scheduleRepository;
-    private final RabbitTemplate rabbitTemplate;
+    private final AppointmentEventPublisher eventPublisher;
 
     public Appointment book(AppointmentRequest request) {
         if (appointmentRepository.existsByDoktorIdAndDatumAndVreme(
-                request.getDoktorId(), request.getDatum(), request.getVreme())) {
+                request.getDoktorId(), request.getDatum(), LocalTime.parse(request.getVreme()))) {
             throw new RuntimeException("Termin je već zauzet");
         }
 
@@ -34,7 +35,7 @@ public class AppointmentService {
                 .doktorId(request.getDoktorId())
                 .pacijentId(request.getPacijentId())
                 .datum(request.getDatum())
-                .vreme(request.getVreme())
+                .vreme(LocalTime.parse(request.getVreme()))
                 .napomena(request.getNapomena())
                 .status(AppointmentStatus.ZAKAZAN)
                 .doktorIme(request.getDoktorIme())
@@ -47,21 +48,7 @@ public class AppointmentService {
 
         appointment = appointmentRepository.save(appointment);
 
-        String message = String.format(
-                "%s|%s|%s|%s|%s|%s",
-                appointment.getPacijentEmail(),
-                appointment.getPacijentIme(),
-                appointment.getDoktorIme(),
-                appointment.getDoktorPrezime(),
-                appointment.getDatum().toString(),
-                appointment.getVreme().toString()
-        );
-
-        rabbitTemplate.convertAndSend(
-                RabbitMQConfig.APPOINTMENT_EXCHANGE,
-                RabbitMQConfig.APPOINTMENT_ROUTING_KEY,
-                message
-        );
+        eventPublisher.publish(KafkaTopics.APPOINTMENT_CREATED, toEvent(appointment, "CREATED"));
 
         return appointment;
     }
@@ -98,16 +85,7 @@ public class AppointmentService {
         appointment.setStatus(AppointmentStatus.OTKAZAN);
         appointment = appointmentRepository.save(appointment);
 
-        // Pošalji notifikaciju za otkazivanje
-        String message = String.format("%s|%s|%s|%s|%s|%s",
-                appointment.getPacijentEmail(),
-                appointment.getPacijentIme(),
-                appointment.getDoktorIme(),
-                appointment.getDoktorPrezime(),
-                appointment.getDatum().toString(),
-                appointment.getVreme().toString()
-        );
-        rabbitTemplate.convertAndSend("appointment.exchange", "appointment.cancelled", message);
+        eventPublisher.publish(KafkaTopics.APPOINTMENT_CANCELLED, toEvent(appointment, "CANCELLED"));
 
         return appointment;
     }
@@ -116,7 +94,12 @@ public class AppointmentService {
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Termin nije pronađen"));
         appointment.setStatus(AppointmentStatus.ZAVRSEN);
-        return appointmentRepository.save(appointment);
+        appointment = appointmentRepository.save(appointment);
+
+        // Novi Kafka lanac (Faza 2): Medical Records sluša ovaj topic.
+        eventPublisher.publish(KafkaTopics.APPOINTMENT_COMPLETED, toEvent(appointment, "COMPLETED"));
+
+        return appointment;
     }
 
     public Appointment reschedule(Long id, LocalDate noviDatum, String novoVreme) {
@@ -139,16 +122,7 @@ public class AppointmentService {
         appointment.setVreme(novoVremeParsed);
         appointment = appointmentRepository.save(appointment);
 
-        // Pošalji notifikaciju za izmenu
-        String message = String.format("%s|%s|%s|%s|%s|%s",
-                appointment.getPacijentEmail(),
-                appointment.getPacijentIme(),
-                appointment.getDoktorIme(),
-                appointment.getDoktorPrezime(),
-                appointment.getDatum().toString(),
-                appointment.getVreme().toString()
-        );
-        rabbitTemplate.convertAndSend("appointment.exchange", "appointment.rescheduled", message);
+        eventPublisher.publish(KafkaTopics.APPOINTMENT_RESCHEDULED, toEvent(appointment, "RESCHEDULED"));
 
         return appointment;
     }
@@ -198,6 +172,26 @@ public class AppointmentService {
 
     public void deleteSchedule(Long id) {
         scheduleRepository.deleteById(id);
+    }
+
+    // ── Pomoćne metode ────────────────────────────────────
+
+    private AppointmentEvent toEvent(Appointment a, String eventType) {
+        return AppointmentEvent.builder()
+                .eventType(eventType)
+                .appointmentId(a.getId())
+                .doktorId(a.getDoktorId())
+                .pacijentId(a.getPacijentId())
+                .pacijentEmail(a.getPacijentEmail())
+                .pacijentIme(a.getPacijentIme())
+                .pacijentPrezime(a.getPacijentPrezime())
+                .pacijentTelefon(a.getPacijentTelefon())
+                .doktorIme(a.getDoktorIme())
+                .doktorPrezime(a.getDoktorPrezime())
+                .doktorSpecijalnost(a.getDoktorSpecijalnost())
+                .datum(a.getDatum() != null ? a.getDatum().toString() : null)
+                .vreme(a.getVreme() != null ? a.getVreme().toString() : null)
+                .build();
     }
 
     private String getDayName(String englishDay) {

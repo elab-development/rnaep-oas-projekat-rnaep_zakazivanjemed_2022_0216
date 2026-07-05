@@ -5,17 +5,17 @@ spring:
   application:
     name: notification-service
 
-  rabbitmq:
-    host: localhost
-    port: 5672
-    username: guest
-    password: guest
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
+    consumer:
+      group-id: notification-service
+      auto-offset-reset: earliest
 
   mail:
     host: smtp.gmail.com
     port: 587
-    username: visited.places.224@gmail.com
-    password: trxg bdti xalj nccg
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
     properties:
       mail:
         smtp:
@@ -25,7 +25,14 @@ spring:
 
 notification:
   email:
-    from: visited.places.224@gmail.com
+    from: ${MAIL_USERNAME}
+  sms:
+    enabled: true
+
+twilio:
+  account-sid: ${TWILIO_ACCOUNT_SID}
+  auth-token: ${TWILIO_AUTH_TOKEN}
+  phone-number: ${TWILIO_PHONE_NUMBER}
 
 logging:
   level:
