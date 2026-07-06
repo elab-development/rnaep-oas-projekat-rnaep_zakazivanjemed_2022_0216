@@ -1,4 +1,4 @@
-package com.medplatform.user_service.security;
+package com.medplatform.appointment_service.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -32,19 +32,17 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             String token = authHeader.substring(7);
 
             if (jwtUtil.isTokenValid(token)) {
-                String email = jwtUtil.extractEmail(token);
                 String role = jwtUtil.extractRole(token);
                 Long userId = jwtUtil.extractUserId(token);
 
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
-                                userId,   // principal je sada userId (Long)
+                                userId,
                                 null,
                                 List.of(new SimpleGrantedAuthority("ROLE_" + role))
                         );
 
                 request.setAttribute("userId", userId);
-                request.setAttribute("email", email);
                 request.setAttribute("role", role);
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);

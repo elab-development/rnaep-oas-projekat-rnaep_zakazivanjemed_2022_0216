@@ -59,7 +59,7 @@ public class UserService {
             doctorRepository.save(doctor);
         }
 
-        String token = jwtUtil.generateToken(user.getEmail(), user.getUloga().name());
+        String token = jwtUtil.generateToken(user.getId(), user.getEmail(), user.getUloga().name());
         return buildAuthResponse(token, user);
     }
 
@@ -71,7 +71,7 @@ public class UserService {
             throw new RuntimeException("Pogrešna lozinka");
         }
 
-        String token = jwtUtil.generateToken(user.getEmail(), user.getUloga().name());
+        String token = jwtUtil.generateToken(user.getId(), user.getEmail(), user.getUloga().name());
         return buildAuthResponse(token, user);
     }
 

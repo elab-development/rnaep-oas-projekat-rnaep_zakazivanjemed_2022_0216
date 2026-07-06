@@ -2,6 +2,7 @@ package com.medplatform.appointment_service.controller;
 
 import com.medplatform.appointment_service.dto.AppointmentRequest;
 import com.medplatform.appointment_service.model.Appointment;
+import com.medplatform.appointment_service.security.SecurityUtils;
 import com.medplatform.appointment_service.service.AppointmentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -21,15 +22,18 @@ public class AppointmentController {
     @PostMapping
     public ResponseEntity<?> book(@RequestBody AppointmentRequest request) {
         try {
+            // IDOR zaštita: pacijent je UVEK ulogovani korisnik, ne iz tela zahteva.
+            request.setPacijentId(SecurityUtils.currentUserId());
             return ResponseEntity.ok(appointmentService.book(request));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
     }
 
-    @GetMapping("/my/{pacijentId}")
-    public ResponseEntity<List<Appointment>> getMyAppointments(@PathVariable Long pacijentId) {
-        return ResponseEntity.ok(appointmentService.getMyAppointments(pacijentId));
+    @GetMapping("/my")
+    public ResponseEntity<List<Appointment>> getMyAppointments() {
+        // IDOR zaštita: ID iz tokena, ne iz URL-a.
+        return ResponseEntity.ok(appointmentService.getMyAppointments(SecurityUtils.currentUserId()));
     }
 
     @GetMapping("/doctor/{doktorId}/patients")
@@ -63,10 +67,16 @@ public class AppointmentController {
         return ResponseEntity.ok(appointmentService.getAvailableSlots(doktorId, datum));
     }
 
+    @GetMapping("/doctor/{doktorId}/patient-summaries")
+    public ResponseEntity<List<com.medplatform.appointment_service.dto.PatientSummary>> getPatientSummaries(
+            @PathVariable Long doktorId) {
+        return ResponseEntity.ok(appointmentService.getPatientSummariesByDoktor(doktorId));
+    }
+
     @PutMapping("/{id}/cancel")
     public ResponseEntity<?> cancel(@PathVariable Long id) {
         try {
-            return ResponseEntity.ok(appointmentService.cancel(id));
+            return ResponseEntity.ok(appointmentService.cancel(id, SecurityUtils.currentUserId()));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
@@ -86,7 +96,8 @@ public class AppointmentController {
         try {
             LocalDate noviDatum = LocalDate.parse(body.get("datum"));
             String novoVreme = body.get("vreme");
-            return ResponseEntity.ok(appointmentService.reschedule(id, noviDatum, novoVreme));
+            return ResponseEntity.ok(
+                    appointmentService.reschedule(id, noviDatum, novoVreme, SecurityUtils.currentUserId()));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }

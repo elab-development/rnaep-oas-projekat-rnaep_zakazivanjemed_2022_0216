@@ -27,5 +27,6 @@ public class AppointmentEvent {
     private String doktorSpecijalnost;
 
     private String datum;              // ISO-8601, npr. 2026-07-10
-    private String vreme;              // HH:mm
+    private String vreme;// HH:mm
+    private String napomena;
 }

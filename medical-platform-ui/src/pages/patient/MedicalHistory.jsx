@@ -9,12 +9,11 @@ export default function MedicalHistory() {
   const [expanded, setExpanded] = useState(null);
 
   useEffect(() => {
-    if (!user?.id) return;
-    api.get(`/api/medical-records/my/${user.id}`)
+    api.get("/api/medical-records/my")
         .then((res) => setRecords(res.data))
         .catch(() => setRecords([]))
         .finally(() => setLoading(false));
-  }, [user]);
+  }, []);
 
   return (
       <div className="max-w-4xl mx-auto px-4 py-8">

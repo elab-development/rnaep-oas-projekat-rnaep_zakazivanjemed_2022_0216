@@ -37,3 +37,12 @@ twilio:
 logging:
   level:
     com.medplatform: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  metrics:
+    tags:
+      application: ${spring.application.name}

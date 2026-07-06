@@ -1,6 +1,6 @@
-package com.medplatform.appointment_service.config;
+package com.medplatform.medical_records_service.config;
 
-import com.medplatform.appointment_service.security.JwtAuthFilter;
+import com.medplatform.medical_records_service.security.JwtAuthFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

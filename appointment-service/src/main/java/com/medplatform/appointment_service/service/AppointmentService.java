@@ -11,6 +11,7 @@ import com.medplatform.appointment_service.repository.AppointmentRepository;
 import com.medplatform.appointment_service.repository.ScheduleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import lombok.extern.slf4j.Slf4j;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -19,6 +20,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AppointmentService {
 
     private final AppointmentRepository appointmentRepository;
@@ -36,7 +38,7 @@ public class AppointmentService {
                 .pacijentId(request.getPacijentId())
                 .datum(request.getDatum())
                 .vreme(LocalTime.parse(request.getVreme()))
-                .napomena(request.getNapomena())
+                .napomena(com.medplatform.appointment_service.util.InputSanitizer.clean(request.getNapomena()))
                 .status(AppointmentStatus.ZAKAZAN)
                 .doktorIme(request.getDoktorIme())
                 .doktorPrezime(request.getDoktorPrezime())
@@ -78,17 +80,22 @@ public class AppointmentService {
         }
         return appointmentRepository.findByDoktorId(doktorId);
     }
-
-    public Appointment cancel(Long id) {
+    public Appointment cancel(Long id, Long userId) {
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Termin nije pronađen"));
+
+        // IDOR zaštita: samo vlasnik termina može da otkaže.
+        if (!appointment.getPacijentId().equals(userId)) {
+            throw new RuntimeException("Nemate pravo na ovaj termin");
+        }
+
         appointment.setStatus(AppointmentStatus.OTKAZAN);
         appointment = appointmentRepository.save(appointment);
-
         eventPublisher.publish(KafkaTopics.APPOINTMENT_CANCELLED, toEvent(appointment, "CANCELLED"));
-
         return appointment;
     }
+
+
 
     public Appointment complete(Long id) {
         Appointment appointment = appointmentRepository.findById(id)
@@ -101,10 +108,14 @@ public class AppointmentService {
 
         return appointment;
     }
-
-    public Appointment reschedule(Long id, LocalDate noviDatum, String novoVreme) {
+    public Appointment reschedule(Long id, LocalDate noviDatum, String novoVreme, Long userId) {
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Termin nije pronađen"));
+
+        // IDOR zaštita: samo vlasnik termina može da izmeni.
+        if (!appointment.getPacijentId().equals(userId)) {
+            throw new RuntimeException("Nemate pravo na ovaj termin");
+        }
 
         if (appointment.getStatus() != AppointmentStatus.ZAKAZAN) {
             throw new RuntimeException("Može se izmeniti samo termin sa statusom ZAKAZAN");
@@ -121,11 +132,35 @@ public class AppointmentService {
         appointment.setDatum(noviDatum);
         appointment.setVreme(novoVremeParsed);
         appointment = appointmentRepository.save(appointment);
-
         eventPublisher.publish(KafkaTopics.APPOINTMENT_RESCHEDULED, toEvent(appointment, "RESCHEDULED"));
-
         return appointment;
     }
+
+    public List<com.medplatform.appointment_service.dto.PatientSummary> getPatientSummariesByDoktor(Long doktorId) {
+        List<Appointment> termini = appointmentRepository.findByDoktorId(doktorId);
+        return termini.stream()
+                .collect(java.util.stream.Collectors.groupingBy(Appointment::getPacijentId))
+                .entrySet().stream()
+                .map(e -> {
+                    Appointment prvi = e.getValue().get(0);
+                    return new com.medplatform.appointment_service.dto.PatientSummary(
+                            e.getKey(),
+                            prvi.getPacijentIme(),
+                            prvi.getPacijentPrezime(),
+                            prvi.getPacijentEmail(),
+                            e.getValue().size());
+                })
+                .toList();
+    }
+    public void compensate(Long appointmentId) {
+        if (appointmentId == null) return;
+        appointmentRepository.findById(appointmentId).ifPresent(a -> {
+            a.setStatus(AppointmentStatus.OTKAZAN);
+            appointmentRepository.save(a);
+            log.info("SAGA: termin {} otkazan kompenzacijom", appointmentId);
+        });
+    }
+
 
     // ── Slobodni termini ──────────────────────────────────
 
@@ -191,6 +226,7 @@ public class AppointmentService {
                 .doktorSpecijalnost(a.getDoktorSpecijalnost())
                 .datum(a.getDatum() != null ? a.getDatum().toString() : null)
                 .vreme(a.getVreme() != null ? a.getVreme().toString() : null)
+                .napomena(a.getNapomena())
                 .build();
     }
 

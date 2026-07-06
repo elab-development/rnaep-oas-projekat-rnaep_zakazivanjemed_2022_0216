@@ -12,6 +12,7 @@ public class KafkaTopics {
     public static final String APPOINTMENT_CANCELLED   = "appointment-cancelled";
     public static final String APPOINTMENT_RESCHEDULED = "appointment-rescheduled";
     public static final String APPOINTMENT_COMPLETED   = "appointment-completed";
+    public static final String APPOINTMENT_FAILED      = "appointment-failed"; // SAGA kompenzacija
 
     @Bean
     public NewTopic appointmentCreatedTopic() {
@@ -31,5 +32,10 @@ public class KafkaTopics {
     @Bean
     public NewTopic appointmentCompletedTopic() {
         return TopicBuilder.name(APPOINTMENT_COMPLETED).partitions(1).replicas(1).build();
+    }
+
+    @Bean
+    public NewTopic appointmentFailedTopic() {
+        return TopicBuilder.name(APPOINTMENT_FAILED).partitions(1).replicas(1).build();
     }
 }

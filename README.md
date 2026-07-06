@@ -1,6 +1,6 @@
-# MedPlatforma — Sistem za zakazivanje medicinskih pregleda
+# MedConnect — Sistem za zakazivanje medicinskih pregleda
 
-MedPlatforma je mikroservisna aplikacija za zakazivanje medicinskih pregleda koja omogućava pacijentima da pretražuju lekare, zakazuju, menjaju i otkazuju termine, dok lekari i administratori upravljaju rasporedima, ustanovama i medicinskim nalazima.
+MedConnect je mikroservisna aplikacija za zakazivanje medicinskih pregleda koja omogućava pacijentima da pretražuju lekare, zakazuju, menjaju i otkazuju termine, dok lekari i administratori upravljaju rasporedima, ustanovama i medicinskim nalazima.
 
 ---
 
@@ -14,7 +14,7 @@ Sistem se sastoji od sledećih mikroservisa:
 | User Service | 8081 | Upravljanje korisnicima, lekarima i ustanovama |
 | Appointment Service | 8082 | Zakazivanje i upravljanje terminima |
 | Medical Records Service | 8083 | Medicinska dokumentacija (MongoDB) |
-| Notification Service | 8084 | Email notifikacije putem RabbitMQ |
+| Notification Service | 8084 | Email/SMS notifikacije putem Kafka |
 | Frontend | 3000 | React aplikacija |
 
 ### Infrastruktura
@@ -22,8 +22,10 @@ Sistem se sastoji od sledećih mikroservisa:
 - **MySQL** (port 3307) — baza za User Service
 - **MySQL** (port 3308) — baza za Appointment Service
 - **MongoDB** (port 27017) — baza za Medical Records Service
-- **RabbitMQ** (port 5672) — message broker za notifikacije
+- **Apache Kafka** (port 29092) — message broker (KRaft mod, bez Zookeeper-a)
 - **Redis** (port 6379) — keširanje
+- **Prometheus** (port 9090) — prikupljanje metrike
+- **Grafana** (port 3001) — vizualizacija metrike
 
 ---
 
@@ -65,7 +67,7 @@ MAIL_PASSWORD=vas_gmail_app_password
 docker compose up --build -d
 ```
 
-Ovo će automatski pokrenuti sve baze podataka, mikroservise i frontend. Proces može trajati nekoliko minuta pri prvom pokretanju.
+Ovo će automatski pokrenuti sve baze podataka, message broker, mikroservise, monitoring i frontend. Proces može trajati nekoliko minuta pri prvom pokretanju.
 
 ### 4. Provera statusa servisa
 
@@ -79,7 +81,8 @@ Svi servisi treba da imaju status `running`.
 
 - **Frontend aplikacija:** http://localhost:3000
 - **API Gateway:** http://localhost:8080
-- **RabbitMQ Management:** http://localhost:15672 (guest/guest)
+- **Grafana (monitoring):** http://localhost:3001 (admin/admin)
+- **Prometheus:** http://localhost:9090
 
 ---
 
@@ -104,7 +107,7 @@ docker compose down -v
 Pokrenite infrastrukturne servise:
 
 ```bash
-docker compose up mysql-user mysql-appointment mongodb redis rabbitmq -d
+docker compose up mysql-user mysql-appointment mongodb redis kafka -d
 ```
 
 ### Pokretanje mikroservisa
@@ -167,12 +170,56 @@ Primer: lekar sa imenom "Ivana" dobija lozinku `Ivana123`.
 
 ## Email notifikacije
 
-Sistem automatski šalje email notifikacije u sledećim situacijama:
+Sistem automatski šalje email/SMS notifikacije u sledećim situacijama:
 
 - Potvrda zakazanog termina
 - Podsetnik 24 sata pre termina
--  Obaveštenje o otkazivanju termina
--  Potvrda izmene termina
+- Obaveštenje o otkazivanju termina
+- Potvrda izmene termina
+- Obaveštenje da je medicinski nalaz spreman
+
+---
+
+## Seminarski rad — napredni koncepti
+
+Projekat je proširen sa pet naprednih mikroservisnih koncepata.
+
+### 1. Arhitektura vođena događajima (Apache Kafka)
+
+Asinhrona komunikacija je migrirana sa RabbitMQ na Apache Kafka (KRaft mod). Poruke se razmenjuju kao JSON događaji.
+
+**Topici (6):** `appointment-created`, `appointment-cancelled`, `appointment-rescheduled`, `appointment-reminder`, `appointment-completed`, `medical-record-created`.
+
+**Produceri i consumeri:**
+- **Appointment Service** — producer (događaji o terminima) i consumer (sluša `appointment-failed` za Saga kompenzaciju).
+- **Notification Service** — consumer (email/SMS) i producer (`appointment-reminder`).
+- **Medical Records Service** — hibridni modul (Processor).
+
+**Hibridni modul (Processor):** Medical Records Service konzumira `appointment-completed`, kreira nacrt medicinskog kartona u MongoDB i objavljuje novi događaj `medical-record-created`, koji Notification Service hvata i obaveštava pacijenta da je nalaz spreman.
+
+### 2. CI/CD (GitHub Actions)
+
+Workflow `.github/workflows/ci.yml` okida se na `push` i `pull_request` (grane `main`, `develop`):
+- **test** — pokreće `mvn verify` za svih 5 Java servisa (matrix strategija).
+- **build** — gradi Docker image za svaki mikroservis, uključujući frontend.
+
+### 3. Bezbednost aplikacije
+
+- **IDOR** — svaki servis validira JWT (koji nosi `userId`); zaštićeni endpointi identitet uzimaju iz tokena, ne iz URL-a, uz proveru vlasništva nad resursom.
+- **CORS** — centralizovano na API Gateway-u; dozvoljeni samo domeni klijentske aplikacije. Neautorizovani origin dobija `403`.
+- **SQL Injection** — Spring Data JPA parametrizovani upiti; `@Query` koristi imenovane parametre bez konkatenacije.
+- **CSRF** — bezstanjska JWT autentikacija preko `Authorization: Bearer` header-a; klasičan CSRF nije primenjiv jer se ne koriste sesijski kolačići.
+- **XSS** — React enkodira izlaz (JSX); backend dodatno sanitizuje tekstualni unos pre upisa u bazu.
+
+### 4. Monitoring (Prometheus + Grafana)
+
+Svi Java servisi izlažu metriku preko Actuator/Micrometer endpointa `/actuator/prometheus`. Prometheus skuplja metriku sa svih 5 servisa, a Grafana prikazuje dashboard sa statusom servisa (UP/DOWN), brojem HTTP zahteva, JVM memorijom i CPU iskorišćenošću. Konfiguracija je u folderu `monitoring/`.
+
+### 5. Saga patern
+
+Implementiran je **choreography-based Saga** patern za konzistentnost pri zakazivanju termina, gde transakcija obuhvata dva servisa sa odvojenim bazama (MySQL i MongoDB), pa klasična ACID transakcija nije moguća.
+
+**Tok:** Appointment Service upisuje termin (`ZAKAZAN`) i objavljuje `appointment-created` → Medical Records Service pokušava pripremu zapisa; pri grešci objavljuje kompenzacioni događaj `appointment-failed` → Appointment Service izvršava **kompenzacionu akciju** i postavlja termin na `OTKAZAN`. Time nema „polovične" transakcije.
 
 ---
 
@@ -182,8 +229,9 @@ Sistem automatski šalje email notifikacije u sledećim situacijama:
 - Java 21, Spring Boot 4.1
 - Spring Cloud Gateway 5.0.2
 - Spring Data JPA (MySQL), Spring Data MongoDB
-- Spring AMQP (RabbitMQ)
-- JWT autentifikacija
+- Spring Kafka (Apache Kafka)
+- JWT autentifikacija, Spring Security
+- Micrometer + Prometheus (monitoring)
 
 **Frontend:**
 - React 18, TypeScript, Vite
@@ -192,4 +240,6 @@ Sistem automatski šalje email notifikacije u sledećim situacijama:
 
 **Infrastruktura:**
 - Docker, Docker Compose
-- MySQL 8, MongoDB 7, Redis 7, RabbitMQ 3.13
+- MySQL 8, MongoDB 7, Redis 7, Apache Kafka 3.8
+- Prometheus, Grafana
+- GitHub Actions (CI/CD)

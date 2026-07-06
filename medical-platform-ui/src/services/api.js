@@ -56,10 +56,7 @@ export const doctorAPI = {
 
 // ── Appointments ──────────────────────────────────
 export const appointmentAPI = {
-  getMyAppointments: () => {
-    const user = getCurrentUser();
-    return api.get(`/api/appointments/my/${user?.id}`);
-  },
+  getMyAppointments: () => api.get("/api/appointments/my"),
   getAvailableSlots: (doctorId, datum) =>
       api.get(`/api/appointments/slots/${doctorId}`, { params: { datum } }),
   book: (data) => api.post("/api/appointments", data),
@@ -87,10 +84,7 @@ export const scheduleAPI = {
 
 // ── Medical Records ───────────────────────────────
 export const medicalAPI = {
-  getMyRecords: () => {
-    const user = getCurrentUser();
-    return api.get(`/api/medical-records/my/${user?.id}`);
-  },
+  getMyRecords: () => api.get("/api/medical-records/my"),
   getDoctorRecords: () => {
     const user = getCurrentUser();
     return api.get(`/api/medical-records/doctor/${user?.id}`);

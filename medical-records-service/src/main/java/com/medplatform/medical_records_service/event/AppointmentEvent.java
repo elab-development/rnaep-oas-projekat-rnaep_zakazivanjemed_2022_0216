@@ -28,4 +28,5 @@ public class AppointmentEvent {
 
     private String datum;
     private String vreme;
+    private String napomena;
 }

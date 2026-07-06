@@ -6,12 +6,14 @@ export default function PatientList() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    api.get("/api/appointments/doctor/patients")
-      .then((res) => setPatients(res.data))
-      .catch(() => setPatients([]))
-      .finally(() => setLoading(false));
-  }, []);
+    useEffect(() => {
+        const user = JSON.parse(localStorage.getItem("user") || "null");
+        if (!user?.id) return;
+        api.get(`/api/appointments/doctor/${user.id}/patient-summaries`)
+            .then((res) => setPatients(res.data))
+            .catch(() => setPatients([]))
+            .finally(() => setLoading(false));
+    }, []);
 
   const filtered = patients.filter((p) =>
     `${p.ime} ${p.prezime} ${p.email}`.toLowerCase().includes(search.toLowerCase())

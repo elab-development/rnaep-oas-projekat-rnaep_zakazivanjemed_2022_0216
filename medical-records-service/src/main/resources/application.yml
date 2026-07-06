@@ -21,3 +21,15 @@ spring:
 logging:
   level:
     com.medplatform: DEBUG
+
+jwt:
+  secret: ${JWT_SECRET:medplatform-super-secret-key-2024-very-long-string}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  metrics:
+    tags:
+      application: ${spring.application.name}

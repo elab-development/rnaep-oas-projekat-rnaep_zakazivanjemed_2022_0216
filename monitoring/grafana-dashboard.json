@@ -1,0 +1,37 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Servisi UP",
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
+      "targets": [ { "expr": "up", "legendFormat": "{{job}}" } ],
+      "fieldConfig": { "defaults": { "mappings": [ { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } } ] } }
+    },
+    {
+      "type": "timeseries",
+      "title": "HTTP zahtevi / s po servisu",
+      "gridPos": { "h": 8, "w": 16, "x": 8, "y": 0 },
+      "targets": [ { "expr": "sum(rate(http_server_requests_seconds_count[1m])) by (application)", "legendFormat": "{{application}}" } ]
+    },
+    {
+      "type": "timeseries",
+      "title": "JVM memorija (used)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [ { "expr": "jvm_memory_used_bytes{area=\"heap\"}", "legendFormat": "{{application}}" } ],
+      "fieldConfig": { "defaults": { "unit": "bytes" } }
+    },
+    {
+      "type": "timeseries",
+      "title": "CPU korišćenje procesa",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [ { "expr": "process_cpu_usage", "legendFormat": "{{application}}" } ],
+      "fieldConfig": { "defaults": { "unit": "percentunit" } }
+    }
+  ],
+  "schemaVersion": 39,
+  "time": { "from": "now-15m", "to": "now" },
+  "title": "MedPlatform Monitoring",
+  "refresh": "10s"
+}
